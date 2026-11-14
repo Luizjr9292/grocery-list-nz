@@ -1,0 +1,159 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user profile metadata for the grocery list owner.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the owner."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254,
+          "description": "Owner email address."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was last updated."
+        }
+      },
+      "required": ["uid", "email", "displayName", "createdAt", "updatedAt"]
+    },
+    "GroceryCategoryDoc": {
+      "title": "GroceryCategoryDoc",
+      "description": "A grocery list category owned by a user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Category display name."
+        },
+        "order": {
+          "type": "integer",
+          "description": "Sort position of the category."
+        },
+        "collapsed": {
+          "type": "boolean",
+          "description": "Whether the category card is collapsed."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when category was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when category was updated."
+        }
+      },
+      "required": ["ownerId", "name", "order", "collapsed", "createdAt", "updatedAt"]
+    },
+    "GroceryItemDoc": {
+      "title": "GroceryItemDoc",
+      "description": "An individual grocery item belonging to a category and owned by a user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Owner Firebase Auth UID."
+        },
+        "categoryId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Parent category document ID."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Item name."
+        },
+        "selected": {
+          "type": "boolean",
+          "description": "Whether the item is selected for the current grocery list."
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Selected quantity between 1 and 999."
+        },
+        "bought": {
+          "type": "boolean",
+          "description": "Whether the item has been picked up in store."
+        },
+        "order": {
+          "type": "integer",
+          "description": "Sort position within the category."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when item was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when item was updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "categoryId",
+        "name",
+        "selected",
+        "quantity",
+        "bought",
+        "order",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile info restricted strictly to the owner."
+    },
+    "/users/{userId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/GroceryCategoryDoc" },
+      "description": "User's grocery categories subcollection."
+    },
+    "/users/{userId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/GroceryItemDoc" },
+      "description": "User's grocery items subcollection referencing categoryId."
+    }
+  }
+}

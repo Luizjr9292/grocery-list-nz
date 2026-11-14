@@ -1,0 +1,6 @@
+{
+  "name": "Smart Grocery List",
+  "description": "Responsive grocery list planner with localStorage persistence, interactive shopping checklist, and 58mm/80mm Bluetooth thermal receipt export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
