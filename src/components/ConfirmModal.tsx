@@ -6,7 +6,9 @@ interface ConfirmModalProps {
   title: string;
   description: string;
   confirmLabel: string;
+  secondaryLabel?: string;
   onConfirm: () => void;
+  onSecondary?: () => void;
   onCancel: () => void;
 }
 
@@ -15,7 +17,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   title,
   description,
   confirmLabel,
+  secondaryLabel,
   onConfirm,
+  onSecondary,
   onCancel,
 }) => {
   useEffect(() => {
@@ -38,7 +42,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
+        className="w-full max-w-md bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5">
@@ -66,6 +70,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <p className="px-5 py-3 text-sm text-slate-600 leading-relaxed">
           {description}
         </p>
+
+        {secondaryLabel && onSecondary && (
+          <div className="px-5 pb-3">
+            <button
+              type="button"
+              onClick={onSecondary}
+              className="text-xs font-medium text-slate-500 hover:text-red-700 underline transition-colors"
+            >
+              {secondaryLabel}
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 bg-slate-50 border-t border-slate-200">
           <button

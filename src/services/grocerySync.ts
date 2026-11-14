@@ -533,7 +533,8 @@ export async function cloudResetPicked(
 
 export async function cloudResetToOriginal(
   uid: string,
-  existingCategories: GroceryCategory[]
+  existingCategories: GroceryCategory[],
+  targetCategories?: GroceryCategory[]
 ): Promise<void> {
   const path = `users/${uid}/categories`;
   try {
@@ -558,8 +559,150 @@ export async function cloudResetToOriginal(
       await batch.commit();
     }
 
-    await seedCategoriesInBatches(uid, createDefaultCategories());
+    await seedCategoriesInBatches(
+      uid,
+      targetCategories && targetCategories.length > 0
+        ? targetCategories
+        : createDefaultCategories()
+    );
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+
+export async function cloudSaveAsOriginal(
+  uid: string,
+  categoriesToSave: GroceryCategory[]
+): Promise<void> {
+  const tplCatsPath = `users/${uid}/templateCategories`;
+  const tplItemsPath = `users/${uid}/templateItems`;
+
+  try {
+    // Delete any existing saved template items and categories
+    const oldItemsSnap = await getDocs(
+      query(collection(db, tplItemsPath), where('ownerId', '==', uid))
+    );
+    const oldCatsSnap = await getDocs(
+      query(collection(db, tplCatsPath), where('ownerId', '==', uid))
+    );
+
+    const oldItemDocs = oldItemsSnap.docs;
+    for (let i = 0; i < oldItemDocs.length; i += 400) {
+      const batch = writeBatch(db);
+      oldItemDocs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    const oldCatDocs = oldCatsSnap.docs;
+    for (let i = 0; i < oldCatDocs.length; i += 400) {
+      const batch = writeBatch(db);
+      oldCatDocs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // Write template categories first
+    for (let i = 0; i < categoriesToSave.length; i += 400) {
+      const batch = writeBatch(db);
+      categoriesToSave.slice(i, i + 400).forEach((cat, idxInChunk) => {
+        const catId = sanitizeId(cat.id);
+        const catRef = doc(db, tplCatsPath, catId);
+        batch.set(catRef, {
+          ownerId: uid,
+          name: clampCategoryName(cat.name),
+          order: i + idxInChunk,
+          collapsed: Boolean(cat.collapsed),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+    }
+
+    // Write template items
+    const itemEntries: Array<{
+      catId: string;
+      item: GroceryItem;
+      order: number;
+    }> = [];
+    categoriesToSave.forEach((cat) => {
+      const safeCatId = sanitizeId(cat.id);
+      cat.items.forEach((item, itemIdx) => {
+        itemEntries.push({ catId: safeCatId, item, order: itemIdx });
+      });
+    });
+
+    for (let i = 0; i < itemEntries.length; i += 400) {
+      const batch = writeBatch(db);
+      itemEntries.slice(i, i + 400).forEach(({ catId, item, order }) => {
+        const itemId = sanitizeId(item.id);
+        const itemRef = doc(db, tplItemsPath, itemId);
+        batch.set(itemRef, {
+          ownerId: uid,
+          categoryId: catId,
+          name: clampItemName(item.name),
+          selected: Boolean(item.selected),
+          quantity: clampQuantity(item.quantity),
+          bought: false,
+          order,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, tplCatsPath);
+  }
+}
+
+export async function cloudGetSavedOriginal(
+  uid: string
+): Promise<GroceryCategory[] | null> {
+  const tplCatsPath = `users/${uid}/templateCategories`;
+  const tplItemsPath = `users/${uid}/templateItems`;
+
+  try {
+    const [catsSnap, itemsSnap] = await Promise.all([
+      getDocs(query(collection(db, tplCatsPath), where('ownerId', '==', uid))),
+      getDocs(query(collection(db, tplItemsPath), where('ownerId', '==', uid))),
+    ]);
+
+    if (catsSnap.empty) return null;
+
+    const sortedCats = catsSnap.docs
+      .map((d) => ({
+        id: d.id,
+        data: d.data() as FirestoreCategoryRecord,
+      }))
+      .sort((a, b) => a.data.order - b.data.order);
+
+    const itemsByCat = new Map<
+      string,
+      Array<{ id: string; data: FirestoreItemRecord }>
+    >();
+    itemsSnap.docs.forEach((d) => {
+      const data = d.data() as FirestoreItemRecord;
+      const list = itemsByCat.get(data.categoryId) || [];
+      list.push({ id: d.id, data });
+      itemsByCat.set(data.categoryId, list);
+    });
+
+    return sortedCats.map((cat) => ({
+      id: cat.id,
+      name: cat.data.name,
+      collapsed: Boolean(cat.data.collapsed),
+      items: (itemsByCat.get(cat.id) || [])
+        .sort((a, b) => a.data.order - b.data.order)
+        .map((it) => ({
+          id: it.id,
+          name: it.data.name,
+          selected: Boolean(it.data.selected),
+          quantity: clampQuantity(it.data.quantity),
+          bought: false,
+        })),
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, tplCatsPath);
+  }
+}
+

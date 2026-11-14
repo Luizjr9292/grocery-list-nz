@@ -153,5 +153,54 @@ service cloud.firestore {
 
       allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(itemId);
     }
+
+    // User's saved custom original categories
+    match /users/{userId}/templateCategories/{categoryId} {
+      allow get: if isOwnerRead(userId) && isValidId(userId) && isValidId(categoryId);
+      allow list: if isOwnerRead(userId) && isValidId(userId) && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(categoryId)
+        && isValidCategory(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(categoryId)
+        && isValidCategory(incoming(), userId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'order', 'collapsed', 'updatedAt']);
+
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(categoryId);
+    }
+
+    // User's saved custom original items
+    match /users/{userId}/templateItems/{itemId} {
+      allow get: if isOwnerRead(userId) && isValidId(userId) && isValidId(itemId);
+      allow list: if isOwnerRead(userId) && isValidId(userId) && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(itemId)
+        && isValidItem(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/users/$(userId)/templateCategories/$(incoming().categoryId));
+
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidId(itemId)
+        && isValidItem(incoming(), userId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'selected', 'quantity', 'bought', 'order', 'updatedAt']);
+
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(itemId);
+    }
   }
 }

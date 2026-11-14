@@ -154,6 +154,14 @@
     "/users/{userId}/items/{itemId}": {
       "schema": { "$ref": "#/entities/GroceryItemDoc" },
       "description": "User's grocery items subcollection referencing categoryId."
+    },
+    "/users/{userId}/templateCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/GroceryCategoryDoc" },
+      "description": "User's saved custom original grocery categories."
+    },
+    "/users/{userId}/templateItems/{itemId}": {
+      "schema": { "$ref": "#/entities/GroceryItemDoc" },
+      "description": "User's saved custom original grocery items."
     }
   }
 }

@@ -11,7 +11,6 @@ import {
   ChevronsUpDown,
   Cloud,
   CloudOff,
-  Code2,
   Copy,
   Eraser,
   FileDown,
@@ -23,8 +22,8 @@ import {
   Plus,
   Receipt,
   RefreshCw,
-  RotateCcw,
   Search,
+  Settings,
   X,
 } from 'lucide-react';
 import { AddModal } from './components/AddModal';
@@ -32,6 +31,7 @@ import { AuthModal } from './components/AuthModal';
 import { CategoryCard } from './components/CategoryCard';
 import { ConfirmModal } from './components/ConfirmModal';
 import { PrintableSheet } from './components/PrintableSheet';
+import { SettingsModal } from './components/SettingsModal';
 import { ShoppingListView } from './components/ShoppingListView';
 import { ThermalReceiptView } from './components/ThermalReceiptView';
 import { createDefaultCategories } from './data/defaultCategories';
@@ -43,8 +43,10 @@ import {
   cloudDeleteCategory,
   cloudDeleteItem,
   cloudEditItem,
+  cloudGetSavedOriginal,
   cloudResetPicked,
   cloudResetToOriginal,
+  cloudSaveAsOriginal,
   cloudSetAllCollapsed,
   cloudToggleBought,
   cloudToggleCollapse,
@@ -68,6 +70,7 @@ import {
 } from './utils/exportHelpers';
 
 const STORAGE_KEY = 'smart_grocery_list_v1';
+const CUSTOM_ORIGINAL_STORAGE_KEY = 'smart_grocery_list_custom_original_v1';
 
 function loadInitialCategories(): GroceryCategory[] {
   try {
@@ -83,8 +86,23 @@ function loadInitialCategories(): GroceryCategory[] {
   return createDefaultCategories();
 }
 
+function loadSavedOriginal(): GroceryCategory[] | null {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ORIGINAL_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return null;
+}
+
 export default function App() {
   const [categories, setCategories] = useState<GroceryCategory[]>(loadInitialCategories);
+  const [savedOriginal, setSavedOriginal] = useState<GroceryCategory[] | null>(loadSavedOriginal);
   const [mode, setMode] = useState<AppMode>('catalog');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,7 +115,9 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [confirmFactoryResetOpen, setConfirmFactoryResetOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<GroceryCategory | null>(null);
   const [isExportingJpg, setIsExportingJpg] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -127,6 +147,7 @@ export default function App() {
       setAuthReady(true);
       if (!user) {
         setCategories(loadInitialCategories());
+        setSavedOriginal(loadSavedOriginal());
         setIsCloudLoading(false);
       }
     });
@@ -149,6 +170,24 @@ export default function App() {
     ensureUserProfileAndSeed(authUser, categoriesRef.current)
       .then(() => {
         if (cancelled) return;
+        void cloudGetSavedOriginal(authUser.uid)
+          .then((cloudTpl) => {
+            if (!cancelled && cloudTpl && cloudTpl.length > 0) {
+              setSavedOriginal(cloudTpl);
+              try {
+                localStorage.setItem(
+                  CUSTOM_ORIGINAL_STORAGE_KEY,
+                  JSON.stringify(cloudTpl)
+                );
+              } catch {
+                // Ignore storage errors
+              }
+            }
+          })
+          .catch(() => {
+            // Non-blocking fallback to local savedOriginal
+          });
+
         unsubscribeSnapshot = subscribeUserGroceryList(
           authUser.uid,
           (cloudCategories) => {
@@ -557,27 +596,95 @@ export default function App() {
     showToast('Unchecked picked items');
   };
 
+  const handleSaveAsOriginal = () => {
+    const snapshot: GroceryCategory[] = categories.map((cat) => ({
+      ...cat,
+      items: cat.items.map((item) => ({ ...item, bought: false })),
+    }));
+    setSavedOriginal(snapshot);
+    try {
+      localStorage.setItem(
+        CUSTOM_ORIGINAL_STORAGE_KEY,
+        JSON.stringify(snapshot)
+      );
+    } catch {
+      // Ignore quota errors
+    }
+
+    if (isCloudSynced && authUser) {
+      void cloudSaveAsOriginal(authUser.uid, snapshot)
+        .then(() =>
+          showToast('Saved current list as your new Original (synced to cloud)')
+        )
+        .catch(() => showToast('Saved locally; cloud template save failed'));
+      return;
+    }
+
+    showToast('Saved current list as your new Original');
+  };
+
   const handleConfirmResetOriginal = () => {
     setConfirmResetOpen(false);
     setFilterMode('all');
     setSearchQuery('');
 
+    const targetList =
+      savedOriginal && savedOriginal.length > 0
+        ? savedOriginal.map((cat) => ({
+            ...cat,
+            items: cat.items.map((item) => ({ ...item, bought: false })),
+          }))
+        : createDefaultCategories();
+
     if (isCloudSynced && authUser) {
       setIsCloudLoading(true);
-      void cloudResetToOriginal(authUser.uid, categories)
+      void cloudResetToOriginal(authUser.uid, categories, targetList)
         .then(() => {
           setIsCloudLoading(false);
-          showToast('Restored original 12 categories');
+          showToast(
+            savedOriginal
+              ? 'Restored your saved Original list'
+              : 'Restored original 12 categories'
+          );
         })
         .catch(() => {
           setIsCloudLoading(false);
-          showToast('Failed to restore cloud defaults');
+          showToast('Failed to restore cloud list');
         });
       return;
     }
 
-    setCategories(createDefaultCategories());
-    showToast('Restored original 12 categories');
+    setCategories(targetList);
+    showToast(
+      savedOriginal
+        ? 'Restored your saved Original list'
+        : 'Restored original 12 categories'
+    );
+  };
+
+  const handleRestoreFactoryOriginal = () => {
+    setConfirmResetOpen(false);
+    setConfirmFactoryResetOpen(false);
+    setFilterMode('all');
+    setSearchQuery('');
+    const factoryDefaults = createDefaultCategories();
+
+    if (isCloudSynced && authUser) {
+      setIsCloudLoading(true);
+      void cloudResetToOriginal(authUser.uid, categories, factoryDefaults)
+        .then(() => {
+          setIsCloudLoading(false);
+          showToast('Restored initial 12 factory categories');
+        })
+        .catch(() => {
+          setIsCloudLoading(false);
+          showToast('Failed to restore factory categories');
+        });
+      return;
+    }
+
+    setCategories(factoryDefaults);
+    showToast('Restored initial 12 factory categories');
   };
 
   const handleConfirmDeleteCategory = () => {
@@ -993,15 +1100,6 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => setConfirmResetOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50/70 border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors whitespace-nowrap shrink-0"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset to Original
-              </button>
-
-              <button
-                type="button"
                 onClick={handleCopyText}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-800 bg-teal-50/70 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors whitespace-nowrap shrink-0"
               >
@@ -1030,11 +1128,11 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={handleDownloadHtml}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-800 bg-violet-50/70 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors whitespace-nowrap shrink-0"
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100/80 border border-slate-200 rounded-lg hover:bg-slate-200/80 transition-colors whitespace-nowrap shrink-0"
               >
-                <Code2 className="w-3.5 h-3.5" />
-                Download HTML
+                <Settings className="w-3.5 h-3.5" />
+                Settings
               </button>
             </div>
 
@@ -1178,19 +1276,56 @@ export default function App() {
         onCreateCategory={handleCreateCategory}
       />
 
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        hasSavedOriginal={Boolean(savedOriginal && savedOriginal.length > 0)}
+        authUser={authUser}
+        isCloudSynced={isCloudSynced}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onSaveAsOriginal={handleSaveAsOriginal}
+        onRequestResetOriginal={() => setConfirmResetOpen(true)}
+        onRequestRestoreFactory={() => setConfirmFactoryResetOpen(true)}
+        onDownloadHtml={handleDownloadHtml}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onSignOut={handleSignOut}
+      />
+
       <ConfirmModal
         isOpen={confirmResetOpen}
-        title="Reset to Original Categories?"
-        description="This restores all 12 pre-loaded grocery categories and items, replacing any custom edits or selections."
-        confirmLabel="Reset to Original"
+        title={
+          savedOriginal
+            ? 'Reset to Your Saved Original?'
+            : 'Reset to Original Categories?'
+        }
+        description={
+          savedOriginal
+            ? 'This restores the custom list you saved with "Save Current as Original", replacing any unsaved changes.'
+            : 'This restores the initial 12 pre-loaded grocery categories and items, replacing any unsaved edits or selections. Tip: Open Settings and click "Save Current as Original" first to save your own list as the new original.'
+        }
+        confirmLabel={
+          savedOriginal ? 'Restore Saved Original' : 'Reset to Original'
+        }
+        secondaryLabel={
+          savedOriginal ? 'Restore initial 12 factory categories instead' : undefined
+        }
         onConfirm={handleConfirmResetOriginal}
+        onSecondary={savedOriginal ? handleRestoreFactoryOriginal : undefined}
         onCancel={() => setConfirmResetOpen(false)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmFactoryResetOpen}
+        title="Restore Initial 12 Factory Categories?"
+        description="This replaces your current active list with the initial 12 pre-loaded grocery categories and items. Your saved Original template remains untouched until you overwrite it."
+        confirmLabel="Restore Factory Categories"
+        onConfirm={handleRestoreFactoryOriginal}
+        onCancel={() => setConfirmFactoryResetOpen(false)}
       />
 
       <ConfirmModal
         isOpen={categoryToDelete !== null}
         title={`Remove "${categoryToDelete?.name ?? ''}"?`}
-        description="This removes the category and all items inside it from your saved list. You can restore defaults anytime with Reset to Original."
+        description="This removes the category and all items inside it from your saved list. You can restore defaults anytime from Settings."
         confirmLabel="Remove Category"
         onConfirm={handleConfirmDeleteCategory}
         onCancel={() => setCategoryToDelete(null)}
