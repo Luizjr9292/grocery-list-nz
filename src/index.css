@@ -5,12 +5,28 @@
     --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+    --theme-bg: #f4f7f5;
+    --theme-surface: #ffffff;
+    --theme-surface-muted: #f7faf8;
+    --theme-border: #dce5df;
+    --theme-text: #0f172a;
+    --theme-text-muted: #475569;
+    --theme-primary: #059669;
+    --theme-primary-hover: #047857;
+    --theme-primary-soft: #ecfdf5;
+    --theme-primary-border: #a7f3d0;
+    --theme-primary-text: #065f46;
+    --theme-ribbon-from: #10b981;
+    --theme-ribbon-via: #f59e0b;
+    --theme-ribbon-to: #0ea5e9;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #f6f7f8;
-    color: #0f172a;
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    transition: background-color 180ms ease, color 180ms ease;
   }
 
   h1, h2, h3, .font-display {
@@ -20,6 +36,24 @@
   .font-mono-receipt {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  .theme-accent-ribbon {
+    background: linear-gradient(
+      90deg,
+      var(--theme-ribbon-from),
+      var(--theme-ribbon-via),
+      var(--theme-ribbon-to)
+    );
+  }
+
+  .theme-progress-bar {
+    background: linear-gradient(
+      90deg,
+      var(--theme-primary),
+      var(--theme-ribbon-via),
+      var(--theme-ribbon-to)
+    );
   }
 }
 

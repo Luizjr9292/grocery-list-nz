@@ -73,20 +73,20 @@ export const ShoppingListView: React.FC<ShoppingListViewProps> = ({
 
   if (totalSelectedItems === 0) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-10 text-center max-w-xl mx-auto mt-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-4">
+      <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl p-10 text-center max-w-xl mx-auto mt-4">
+        <div className="w-12 h-12 rounded-xl bg-[var(--theme-primary-soft)] text-[var(--theme-primary-text)] flex items-center justify-center mx-auto mb-4">
           <ShoppingBasket className="w-6 h-6" />
         </div>
-        <h2 className="font-display text-lg font-semibold text-slate-900">
+        <h2 className="font-display text-lg font-semibold text-[var(--theme-text)]">
           Your shopping list is empty
         </h2>
-        <p className="text-sm text-slate-600 mt-1.5 mb-6">
+        <p className="text-sm text-[var(--theme-text-muted)] mt-1.5 mb-6">
           Check items in the Catalog view to build your focused shopping checklist and thermal receipt.
         </p>
         <button
           type="button"
           onClick={onBackToCatalog}
-          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-primary-hover)] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Browse Catalog
@@ -97,21 +97,21 @@ export const ShoppingListView: React.FC<ShoppingListViewProps> = ({
 
   return (
     <div className="space-y-5">
-      <div className="bg-white border border-slate-200 border-t-[3px] border-t-emerald-500 rounded-xl p-5">
+      <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] border-t-[3px] border-t-[var(--theme-primary)] rounded-xl p-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-display text-lg font-semibold text-slate-900">
+              <h2 className="font-display text-lg font-semibold text-[var(--theme-text)]">
                 Shopping Checklist
               </h2>
               {progressPercent === 100 && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--theme-primary-text)]">
                   <CheckCircle2 className="w-4 h-4" />
                   All picked up
                 </span>
               )}
             </div>
-            <p className="text-sm text-slate-600 tabular-nums mt-0.5">
+            <p className="text-sm text-[var(--theme-text-muted)] tabular-nums mt-0.5">
               {totalPickedItems} of {totalSelectedItems} items picked up ({progressPercent}%) · {totalQuantity} total units
             </p>
           </div>
@@ -155,7 +155,7 @@ export const ShoppingListView: React.FC<ShoppingListViewProps> = ({
           aria-label="Shopping trip progress"
         >
           <div
-            className="h-full bg-gradient-to-r from-emerald-600 via-teal-500 to-sky-500 transition-all duration-200"
+            className="h-full theme-progress-bar transition-all duration-200"
             style={{ width: `${progressPercent}%` }}
           />
         </div>

@@ -2,22 +2,27 @@ import React, { useEffect } from 'react';
 import { User } from 'firebase/auth';
 import {
   BookmarkCheck,
+  Check,
   Cloud,
   CloudOff,
   Code2,
   LogIn,
   LogOut,
+  Palette,
   RotateCcw,
   Settings,
   Sparkles,
   X,
 } from 'lucide-react';
+import { APP_THEMES, AppThemeId } from '../utils/appThemes';
 
 interface SettingsModalProps {
   isOpen: boolean;
   hasSavedOriginal: boolean;
   authUser: User | null;
   isCloudSynced: boolean;
+  activeTheme: AppThemeId;
+  onSelectTheme: (themeId: AppThemeId) => void;
   onClose: () => void;
   onSaveAsOriginal: () => void;
   onRequestResetOriginal: () => void;
@@ -32,6 +37,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   hasSavedOriginal,
   authUser,
   isCloudSynced,
+  activeTheme,
+  onSelectTheme,
   onClose,
   onSaveAsOriginal,
   onRequestResetOriginal,
@@ -60,25 +67,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
+        className="w-full max-w-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl shadow-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-500 to-sky-500" />
+        <div className="h-1 w-full theme-accent-ribbon" />
 
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--theme-border)]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[var(--theme-primary-soft)] text-[var(--theme-primary-text)] flex items-center justify-center">
               <Settings className="w-4 h-4" />
             </div>
             <div>
               <h2
                 id="settings-modal-title"
-                className="font-display text-base font-semibold text-slate-900"
+                className="font-display text-base font-semibold text-[var(--theme-text)]"
               >
                 List Settings
               </h2>
-              <p className="text-xs text-slate-500">
-                Manage your default list template, backups, and cloud account.
+              <p className="text-xs text-[var(--theme-text-muted)]">
+                Customize your palette, default template, backups, and cloud account.
               </p>
             </div>
           </div>
@@ -93,10 +100,78 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Section 1: Saved Original Template */}
+          {/* Section 1: Theme Settings */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-sm font-semibold text-slate-900">
+              <h3 className="font-display text-sm font-semibold text-[var(--theme-text)] flex items-center gap-1.5">
+                <Palette className="w-4 h-4 text-[var(--theme-primary)]" />
+                Theme Settings
+              </h3>
+              <span className="text-xs text-[var(--theme-text-muted)]">
+                {APP_THEMES.find((t) => t.id === activeTheme)?.name ?? 'Forest'} active
+              </span>
+            </div>
+            <p className="text-xs text-[var(--theme-text-muted)] leading-relaxed">
+              Switch the app color palette across surfaces and accent controls.
+            </p>
+
+            <div
+              className="grid grid-cols-2 gap-2.5 pt-1"
+              role="radiogroup"
+              aria-label="Color palette"
+            >
+              {APP_THEMES.map((theme) => {
+                const isSelected = theme.id === activeTheme;
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => onSelectTheme(theme.id)}
+                    className={`flex items-center justify-between gap-2.5 p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? 'bg-[var(--theme-primary-soft)] border-[var(--theme-primary)] ring-1 ring-[var(--theme-primary)]'
+                        : 'bg-[var(--theme-surface-muted)] border-[var(--theme-border)] hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {theme.swatchClasses.map((swatchClass, idx) => (
+                          <span
+                            key={idx}
+                            aria-hidden="true"
+                            className={`w-3.5 h-3.5 rounded-full border border-slate-300/70 ${swatchClass}`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs font-semibold text-[var(--theme-text)] truncate">
+                        {theme.name}
+                      </p>
+                      <p className="text-[11px] text-[var(--theme-text-muted)] truncate">
+                        {theme.subtitle}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <span
+                        aria-hidden="true"
+                        className="w-5 h-5 rounded-full bg-[var(--theme-primary)] text-white flex items-center justify-center shrink-0"
+                      >
+                        <Check className="w-3 h-3" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <hr className="border-[var(--theme-border)]" />
+
+          {/* Section 2: Saved Original Template */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-sm font-semibold text-[var(--theme-text)]">
                 Original List Template
               </h3>
               <span className="text-xs text-slate-500">

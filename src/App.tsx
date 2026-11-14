@@ -62,6 +62,12 @@ import {
   ReceiptWidth,
 } from './types/grocery';
 import {
+  APP_THEMES,
+  AppThemeId,
+  applyAppTheme,
+  loadSavedAppTheme,
+} from './utils/appThemes';
+import {
   downloadElementAsJpg,
   downloadGroceryPdf,
   downloadStandaloneHtml,
@@ -116,6 +122,7 @@ export default function App() {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [activeTheme, setActiveTheme] = useState<AppThemeId>(loadSavedAppTheme);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [confirmFactoryResetOpen, setConfirmFactoryResetOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<GroceryCategory | null>(null);
@@ -126,6 +133,10 @@ export default function App() {
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const categoriesRef = useRef<GroceryCategory[]>(categories);
+
+  useEffect(() => {
+    applyAppTheme(activeTheme);
+  }, [activeTheme]);
 
   useEffect(() => {
     categoriesRef.current = categories;
@@ -785,6 +796,15 @@ export default function App() {
     window.print();
   };
 
+  const handleSelectTheme = (themeId: AppThemeId) => {
+    setActiveTheme(themeId);
+    applyAppTheme(themeId);
+    const chosen = APP_THEMES.find((t) => t.id === themeId);
+    if (chosen) {
+      showToast(`Theme switched to ${chosen.name}`);
+    }
+  };
+
   const hasVisibleCatalogCards = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return categories.some((cat) => {
@@ -804,18 +824,18 @@ export default function App() {
   }, [categories, searchQuery, filterMode]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F7FA] text-slate-900">
+    <div className="min-h-screen flex flex-col bg-[var(--theme-bg)] text-[var(--theme-text)] transition-colors">
       {/* Strict 3-zone Top Bar with colorful top accent ribbon */}
-      <header className="no-print sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
+      <header className="no-print sticky top-0 z-30 bg-[var(--theme-surface)]/95 backdrop-blur-md border-b border-[var(--theme-border)]">
         <div
-          className="h-1 w-full bg-gradient-to-r from-emerald-500 via-amber-500 to-sky-500"
+          className="h-1 w-full theme-accent-ribbon"
           aria-hidden="true"
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4 sm:gap-8">
           <button
             type="button"
             onClick={() => setMode('catalog')}
-            className="font-display text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded"
+            className="font-display text-base sm:text-lg font-bold tracking-tight text-[var(--theme-text)] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary)] rounded"
           >
             Smart Grocery List
           </button>
@@ -829,8 +849,8 @@ export default function App() {
               onClick={() => setMode('catalog')}
               className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
                 mode === 'catalog'
-                  ? 'text-emerald-700 border-emerald-600 font-semibold'
-                  : 'text-slate-600 border-transparent hover:text-slate-900'
+                  ? 'text-[var(--theme-primary-text)] border-[var(--theme-primary)] font-semibold'
+                  : 'text-[var(--theme-text-muted)] border-transparent hover:text-[var(--theme-text)]'
               }`}
             >
               Catalog
@@ -887,7 +907,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors whitespace-nowrap shrink-0 shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-semibold text-white bg-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)] transition-colors whitespace-nowrap shrink-0 shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Add Category/Item</span>
@@ -949,7 +969,7 @@ export default function App() {
         {/* Workspace Toolbar */}
         <section
           aria-label="List controls and exports"
-          className="no-print bg-white border border-slate-200 rounded-xl p-4 mb-6 space-y-3.5"
+          className="no-print bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl p-4 mb-6 space-y-3.5"
         >
           {/* Mobile mode switcher */}
           <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-lg md:hidden">
@@ -998,7 +1018,7 @@ export default function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search items or categories..."
                 aria-label="Search grocery items or categories"
-                className="w-full pl-9 pr-9 py-2 text-sm bg-white border border-slate-200 rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-emerald-700"
+                className="w-full pl-9 pr-9 py-2 text-sm bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg placeholder:text-slate-400 focus:outline-none focus:border-[var(--theme-primary)]"
               />
               {searchQuery && (
                 <button
@@ -1062,8 +1082,8 @@ export default function App() {
                 onClick={() => setMode('checklist')}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                   mode === 'checklist'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                    ? 'bg-[var(--theme-primary)] text-white shadow-xs'
+                    : 'bg-[var(--theme-primary-soft)] text-[var(--theme-primary-text)] border border-[var(--theme-primary-border)] hover:opacity-90'
                 }`}
               >
                 <ListChecks className="w-3.5 h-3.5" />
@@ -1136,10 +1156,10 @@ export default function App() {
               </button>
             </div>
 
-            <div className="text-xs text-slate-500 tabular-nums flex flex-wrap items-center gap-2 shrink-0">
+            <div className="text-xs text-[var(--theme-text-muted)] tabular-nums flex flex-wrap items-center gap-2 shrink-0">
               {isCloudSynced && (
                 <>
-                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                  <span className="inline-flex items-center gap-1 text-[var(--theme-primary-text)] font-medium">
                     <Cloud className="w-3.5 h-3.5" />
                     Cloud synced
                   </span>
@@ -1147,7 +1167,7 @@ export default function App() {
                 </>
               )}
               <span className="inline-flex items-center gap-1.5">
-                <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
+                <CheckSquare className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
                 {stats.selectedItems} of {stats.totalItems} selected
               </span>
               <span aria-hidden="true">·</span>
@@ -1198,7 +1218,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setFilterMode('all')}
-                          className="px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 rounded-lg hover:bg-emerald-800"
+                          className="px-3.5 py-2 text-xs font-semibold text-white bg-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary-hover)]"
                         >
                           Show All Items
                         </button>
@@ -1281,6 +1301,8 @@ export default function App() {
         hasSavedOriginal={Boolean(savedOriginal && savedOriginal.length > 0)}
         authUser={authUser}
         isCloudSynced={isCloudSynced}
+        activeTheme={activeTheme}
+        onSelectTheme={handleSelectTheme}
         onClose={() => setIsSettingsModalOpen(false)}
         onSaveAsOriginal={handleSaveAsOriginal}
         onRequestResetOriginal={() => setConfirmResetOpen(true)}
